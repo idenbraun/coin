@@ -1,0 +1,33 @@
+{
+  "id": "./",
+  "name": "Монетка",
+  "short_name": "Монетка",
+  "description": "Когда нужно принять трудное решение, подбрось монетку. Пока она в воздухе, ты поймёшь, чего на самом деле хочешь.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#13131F",
+  "theme_color": "#13131F",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
