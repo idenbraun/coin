@@ -201,20 +201,51 @@ h1 {
   line-height: 1.1;
 }
 
-/* Тихая статистика */
-.foot { min-height: 28px; display: flex; align-items: center; justify-content: center; }
-.stats {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  justify-content: center;
-  align-items: baseline;
-  font-size: 13px;
+/* Статистика: свёрнута, раскрывается вверх по клику */
+.foot { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.stat-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
   color: var(--muted);
+  font: 400 13px var(--font-body);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.stat-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.stat-toggle .chev svg { width: 14px; height: 14px; min-width: 0; min-height: 0; }
+.stat-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.stat-toggle:hover .chev { opacity: 1; }
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, 340px);
+  margin: 4px 0 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
   font-variant-numeric: tabular-nums;
 }
-.stats b { font-weight: 500; color: var(--ink); opacity: .75; }
+.panel-head { margin: 0; text-align: center; font-size: 13px; color: var(--muted); }
+.bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--line); }
+.bar i { display: block; height: 100%; width: 0; transition: width .5s ease; }
+.bar .by { background: var(--coin-mid); }
+.bar .bn { background: var(--ink); }
+.panel-row { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+.panel-row > div { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.panel-row b { font-family: var(--font-display); font-weight: 700; font-size: 17px; }
+.panel-row small { color: var(--muted); font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; align-self: center; flex: none; }
+.dot.y { background: var(--coin-mid); }
+.dot.n { background: var(--ink); }
+.panel .reset { align-self: center; }
 .reset {
   padding: 2px 0;
   border: 0;
@@ -239,7 +270,7 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .lift { animation: none; }
   .chev.nudge svg { animation: none; }
-  .about, .chev { transition: none; }
+  .about, .chev, .bar i { transition: none; }
 }
 </style>
 
@@ -271,12 +302,23 @@ h1 {
   </div>
 
   <div class="foot">
-    <p class="stats" id="stats" hidden>
-      <span>Да <b id="cYes">0</b></span>
-      <span>Нет <b id="cNo">0</b></span>
-      <span>всего <b id="cAll">0</b></span>
-      <button type="button" class="reset" id="reset">сбросить</button>
-    </p>
+    <div class="about" id="statPanelWrap">
+      <div class="about-in">
+        <div class="panel" id="statPanel">
+          <p class="panel-head" id="statHead">Пока ни одного броска</p>
+          <div class="bar" aria-hidden="true"><i class="by" id="barYes"></i><i class="bn" id="barNo"></i></div>
+          <div class="panel-row">
+            <div><span class="dot y"></span>Да <b id="cYes">0</b> <small id="pYes"></small></div>
+            <div><span class="dot n"></span>Нет <b id="cNo">0</b> <small id="pNo"></small></div>
+          </div>
+          <button type="button" class="reset" id="reset" hidden>сбросить статистику</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="stat-toggle" id="statBtn" aria-expanded="false" aria-controls="statPanelWrap">
+      <span>Статистика<span id="statTotal"></span></span>
+      <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></span>
+    </button>
   </div>
 
   <p class="sr-only" id="live" aria-live="polite"></p>
@@ -286,8 +328,15 @@ h1 {
 (function () {
   var $ = function (s) { return document.querySelector(s); };
   var coin = $('#coin'), lift = $('#lift'), shadow = $('#shadow');
-  var stats = $('#stats'), cYes = $('#cYes'), cNo = $('#cNo'), cAll = $('#cAll');
+  var cYes = $('#cYes'), cNo = $('#cNo'), pYes = $('#pYes'), pNo = $('#pNo');
+  var barYes = $('#barYes'), barNo = $('#barNo'), statHead = $('#statHead'), statTotal = $('#statTotal');
+  var statBtn = $('#statBtn'), statWrap = $('#statPanelWrap');
   var resetBtn = $('#reset'), live = $('#live');
+
+  statBtn.addEventListener('click', function () {
+    var open = statWrap.classList.toggle('open');
+    statBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
 
   var titleBtn = $('#titleBtn'), about = $('#about'), chev = $('#chev');
   var hintSeen = false;
@@ -328,10 +377,25 @@ h1 {
 
   function paintStats() {
     var total = counts[0] + counts[1];
-    stats.hidden = total === 0;
     cYes.textContent = counts[0];
     cNo.textContent = counts[1];
-    cAll.textContent = total;
+    statTotal.textContent = total ? ' · ' + total : '';
+    if (total === 0) {
+      statHead.textContent = 'Пока ни одного броска';
+      pYes.textContent = '';
+      pNo.textContent = '';
+      barYes.style.width = '0%';
+      barNo.style.width = '0%';
+      resetBtn.hidden = true;
+      return;
+    }
+    var py = Math.round(counts[0] / total * 100);
+    statHead.textContent = 'Всего бросков: ' + total;
+    pYes.textContent = py + '%';
+    pNo.textContent = (100 - py) + '%';
+    barYes.style.width = (counts[0] / total * 100) + '%';
+    barNo.style.width = (counts[1] / total * 100) + '%';
+    resetBtn.hidden = false;
   }
 
   function pickSide() {
